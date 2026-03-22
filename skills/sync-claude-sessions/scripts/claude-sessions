@@ -52,8 +52,9 @@ VAULT_DIR = _detect_vault_dir()
 OUTPUT_DIR = VAULT_DIR / "Claude-Sessions"
 SKILLS_DIR = VAULT_DIR / ".claude" / "skills"
 SESSIONS_DIR = _detect_sessions_dir()
+QMD_SESSIONS_DIR = VAULT_DIR / "Notes" / "Projects" / "claude-sessions-qmd"
 
-PRESERVED_FIELDS = {"comments", "projects", "status", "tags", "rating", "title"}
+PRESERVED_FIELDS = {"comments", "projects", "status", "tags", "rating", "title", "search_optimized"}
 PRESERVED_SECTION = "## My Notes"
 
 
@@ -93,6 +94,18 @@ def path_to_wikilink(file_path: str) -> str | None:
         if rel_path.endswith(".md"):
             rel_path = rel_path[:-3]
         return f"[[{rel_path}]]"
+    return None
+
+
+def find_qmd_session_file(session_id: str) -> str | None:
+    """Find matching claude-sessions-qmd file by session ID."""
+    if not QMD_SESSIONS_DIR.exists():
+        return None
+
+    short_id = session_id[:8]
+    for file in QMD_SESSIONS_DIR.glob(f"*-{short_id}.md"):
+        # Return as wikilink path
+        return f"[[Notes/Projects/claude-sessions-qmd/{file.stem}]]"
     return None
 
 
@@ -342,12 +355,25 @@ def generate_markdown(data: dict, session_id: str, existing_fm: dict | None = No
     else:
         lines.append("projects: []")
 
+    # Search-optimized link (if exists)
+    search_optimized = existing_fm.get("search_optimized") if existing_fm else None
+    if not search_optimized:
+        search_optimized = find_qmd_session_file(session_id)
+    if search_optimized:
+        lines.append(f'search_optimized: "{search_optimized}"')
+
     lines.append("---")
     lines.append("")
 
     # Content
     lines.append(f"# {title}")
     lines.append("")
+
+    # Quick links section (if search-optimized version exists)
+    if search_optimized:
+        lines.append("**Quick Links:**")
+        lines.append(f"- Search-optimized version: {search_optimized}")
+        lines.append("")
 
     if data["summary"]:
         lines.append("## Summary")

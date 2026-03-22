@@ -1,8 +1,6 @@
 ---
 name: recall
 description: Load context from vault memory. Temporal queries (yesterday, last week, session history) use native JSONL timeline. Topic queries use QMD BM25 search. "recall graph" generates interactive temporal graph of sessions and files. Every recall ends with "One Thing" - the single highest-leverage next action synthesized from results. Use when user says "recall", "what did we work on", "load context about", "remember when we", "prime context", "yesterday", "what was I doing", "last week", "session history", "recall graph", "session graph".
-argument-hint: [yesterday|today|last week|this week|TOPIC|graph DATE_EXPR]
-allowed-tools: Bash(qmd:*), Bash(python3:*)
 ---
 
 # Recall Skill
@@ -11,12 +9,12 @@ Three modes: temporal (date-based session timeline), topic (BM25 search across Q
 
 ## What It Does
 
-- **Temporal queries** ("yesterday", "last week", "what was I doing"): Scans native Claude Code JSONL files by date. Shows a table of sessions with time, message count, and first message. Expand any session for conversation details.
-- **Topic queries** ("QMD video", "authentication"): BM25 search across sessions, notes, and daily logs in QMD collections.
+- **Temporal queries** ("yesterday", "last week", "what was I doing"): Scans Claude-Sessions markdown files by date. Shows a table of sessions with time, message count, and first message. Expand any session for full conversation. **Works cross-machine** via synced vault.
+- **Topic queries** ("QMD video", "authentication"): BM25 search across sessions, notes, and daily logs in QMD collections. Results include wikilinks to full session context.
 - **Graph queries** ("graph yesterday", "graph last week"): Generates an interactive HTML graph showing sessions as nodes connected to files they touched. Sessions colored by day, files colored by folder. Clusters reveal related work streams, shared files show cross-session dependencies.
 - **One Thing synthesis**: After presenting results, synthesizes the single most impactful next action based on what has momentum, what's blocked, and what's closest to done. Not generic - specific and actionable.
 
-No custom setup needed for temporal recall - every Claude Code user has JSONL files.
+**Cross-machine compatible**: All recall functions work from synced vault markdown files, no local JSONL needed.
 
 ## Auto-Indexing (Optional)
 

@@ -15,12 +15,12 @@ Parse the user's input after `/recall` and classify:
 - **Both** - temporal + topic: "what did I do with QMD yesterday"
   -> Go to Step 2A first, then scan results for the topic
 
-## Step 2A: Temporal Recall (JSONL Timeline)
+## Step 2A: Temporal Recall (Vault Markdown Files)
 
-Run the recall-day script from the skill's scripts directory:
+Run the recall-from-vault script from the skill's scripts directory:
 
 ```bash
-python3 .claude/skills/recall/scripts/recall-day.py list DATE_EXPR
+python3 .claude/skills/recall/scripts/recall-from-vault.py list DATE_EXPR --vault $VAULT_DIR
 ```
 
 Replace `DATE_EXPR` with the parsed date expression. Supported:
@@ -32,15 +32,15 @@ Replace `DATE_EXPR` with the parsed date expression. Supported:
 
 Options:
 - `--min-msgs N` - filter noise (default: 3)
-- `--all-projects` - scan all projects, not just current vault
+- `--vault PATH` - path to vault (auto-detected from $VAULT_DIR or CWD)
 
 Present the table to the user. If they pick a session to expand:
 
 ```bash
-python3 .claude/skills/recall/scripts/recall-day.py expand SESSION_ID
+python3 .claude/skills/recall/scripts/recall-from-vault.py expand SESSION_ID --vault $VAULT_DIR
 ```
 
-This shows the conversation flow (user messages, assistant first lines, tool calls).
+This shows the full conversation from the synced Claude-Sessions markdown files. Works on any machine with vault access.
 
 ## Step 2B: Topic Recall (QMD BM25 with Query Expansion)
 
@@ -66,13 +66,21 @@ Run sessions variants in parallel. Notes/daily can use fewer variants (prioritiz
 
 ## Step 3: Fetch Full Documents (Topic path only)
 
-For the top 3 most relevant results across all collections, get the full document:
+For the top 3 most relevant results across all collections:
 
-```bash
-qmd get "qmd://collection/path/to/file.md" -l 50
-```
+**For session hits** (from `sessions` collection):
+- The search result will have a `full_session` wikilink in its frontmatter
+- Read that linked Claude-Sessions file directly for full conversation context
+- Example: If you find `claude-sessions-qmd/2026-03-01-1352-d3b6ec64.md`, read `Claude-Sessions/2026-03-01-d3b6ec64.md`
 
-Use the paths returned from Step 2B searches. The `-l 50` flag limits to 50 lines (adjust if needed for very large files).
+**For notes/daily hits**:
+- Read the file directly from vault using the path from search results
+- Or use `qmd get` if you need excerpts:
+  ```bash
+  qmd get "qmd://collection/path/to/file.md" -l 50
+  ```
+
+The bidirectional wikilinks ensure you can always jump from search-optimized version → full context.
 
 ## Step 4: Present Structured Summary
 
@@ -153,8 +161,10 @@ Tell the user the node/edge counts and what to look for (clusters, shared files)
 
 ## Notes
 
-- Temporal queries go through `recall-day.py` (native JSONL, no QMD needed)
-- Graph queries go through `session-graph.py` (NetworkX + pyvis)
-- Topic queries use BM25 (`qmd search`) NOT hybrid (`qmd query`) - 53x faster
+- **Temporal queries** go through `recall-from-vault.py` (reads Claude-Sessions markdown, works cross-machine)
+- **Graph queries** go through `session-graph.py` (NetworkX + pyvis) - currently JSONL-based, may need local files
+- **Topic queries** use BM25 (`qmd search`) NOT hybrid (`qmd query`) - 53x faster
 - Run all 3 collection searches in parallel to keep response time fast
-- If a result is truncated or you need more context, fetch with `-l 100` or higher
+- **Bidirectional links**: session search results have `full_session` wikilink to complete conversation
+- **Cross-machine compatible**: All recall functions work from synced vault, no local JSONL needed
+- If a result is truncated or you need more context, read the full Claude-Sessions file directly
