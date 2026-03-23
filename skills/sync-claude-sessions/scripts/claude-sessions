@@ -141,6 +141,7 @@ def extract_session_data(records: list[dict]) -> dict:
         "skills": [],
         "messages": 0,
         "user_messages": [],
+        "conversation": [],
         "first_timestamp": None,
         "last_timestamp": None,
         "files_created": [],
@@ -179,12 +180,17 @@ def extract_session_data(records: list[dict]) -> dict:
             if content and isinstance(content, str):
                 if not record.get("isMeta"):
                     data["user_messages"].append(content)
+                    data["conversation"].append({"role": "user", "content": content})
             elif isinstance(content, list):
+                user_text_parts = []
                 for item in content:
                     if isinstance(item, dict) and item.get("type") == "text":
                         text = item.get("text", "")
                         if text and not record.get("isMeta"):
                             data["user_messages"].append(text)
+                            user_text_parts.append(text)
+                if user_text_parts:
+                    data["conversation"].append({"role": "user", "content": "\n\n".join(user_text_parts)})
 
         if record_type == "assistant":
             msg = record.get("message", {})
@@ -196,6 +202,14 @@ def extract_session_data(records: list[dict]) -> dict:
                         skill_name = skill_input.get("skill", "")
                         if skill_name and skill_name not in data["skills"]:
                             data["skills"].append(skill_name)
+                asst_text_parts = []
+                for item in contents:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        text = item.get("text", "").strip()
+                        if text:
+                            asst_text_parts.append(text)
+                if asst_text_parts:
+                    data["conversation"].append({"role": "assistant", "content": "\n\n".join(asst_text_parts)})
 
     if not data["title"] and data["user_messages"]:
         first_msg = data["user_messages"][0]
@@ -424,11 +438,20 @@ def generate_markdown(data: dict, session_id: str, existing_fm: dict | None = No
     # Conversation
     lines.append("## Conversation")
     lines.append("")
-    for msg in data["user_messages"]:
-        lines.append("### User")
-        lines.append("")
-        lines.append(msg)
-        lines.append("")
+    conversation = data.get("conversation", [])
+    if conversation:
+        for turn in conversation:
+            role_header = "### User" if turn["role"] == "user" else "### Assistant"
+            lines.append(role_header)
+            lines.append("")
+            lines.append(turn["content"])
+            lines.append("")
+    else:
+        for msg in data["user_messages"]:
+            lines.append("### User")
+            lines.append("")
+            lines.append(msg)
+            lines.append("")
 
     return "\n".join(lines)
 
