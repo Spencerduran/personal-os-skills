@@ -715,13 +715,19 @@ def cmd_sync(args):
 
 def cmd_export(args):
     """Export command - batch export sessions."""
+    projects_root = Path.home() / ".claude" / "projects"
+    if getattr(args, "all_projects", False) and projects_root.is_dir():
+        search_dirs = [d for d in projects_root.iterdir() if d.is_dir()]
+    else:
+        search_dirs = [SESSIONS_DIR]
+
     if args.today:
         cutoff = time.time() - 86400
-        sessions = [f for f in SESSIONS_DIR.glob("*.jsonl")
+        sessions = [f for d in search_dirs for f in d.glob("*.jsonl")
                     if f.stat().st_mtime >= cutoff and f.stat().st_size > 0]
         print(f"Found {len(sessions)} sessions from today")
     elif args.all:
-        sessions = [f for f in SESSIONS_DIR.glob("*.jsonl") if f.stat().st_size > 0]
+        sessions = [f for d in search_dirs for f in d.glob("*.jsonl") if f.stat().st_size > 0]
         print(f"Found {len(sessions)} total sessions")
     else:
         sessions = [Path(args.file)]
@@ -908,6 +914,7 @@ def main():
     p_export = subparsers.add_parser("export", help="Batch export sessions")
     p_export.add_argument("--today", action="store_true", help="Export today's sessions")
     p_export.add_argument("--all", action="store_true", help="Export all sessions")
+    p_export.add_argument("--all-projects", action="store_true", help="Search all Claude project dirs, not just current")
     p_export.add_argument("file", nargs="?", help="Specific session file")
     p_export.set_defaults(func=cmd_export)
 
