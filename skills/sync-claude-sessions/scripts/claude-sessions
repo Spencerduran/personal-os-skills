@@ -473,7 +473,7 @@ def get_output_path(session_id: str, date: str) -> Path:
     return OUTPUT_DIR / f"{date}-{session_id[:8]}.md"
 
 
-def sync_session(session_id: str, transcript_path: str | None = None, quiet: bool = False) -> Path | None:
+def sync_session(session_id: str, transcript_path: str | None = None, quiet: bool = False, min_msgs: int = 0) -> Path | None:
     """Sync a session to markdown. Returns output path or None."""
     if session_id.startswith("agent-"):
         return None
@@ -492,6 +492,9 @@ def sync_session(session_id: str, transcript_path: str | None = None, quiet: boo
 
     data = extract_session_data(records)
     data["session_id"] = session_id
+
+    if min_msgs > 0 and data["messages"] < min_msgs:
+        return None
 
     existing_file = find_session_file(session_id)
     output_file = existing_file or get_output_path(session_id, data["date"])
@@ -734,7 +737,7 @@ def cmd_export(args):
 
     for session_file in sessions:
         session_id = session_file.stem
-        sync_session(session_id, str(session_file), quiet=args.quiet)
+        sync_session(session_id, str(session_file), quiet=args.quiet, min_msgs=args.min_msgs)
 
     return 0
 
@@ -915,6 +918,7 @@ def main():
     p_export.add_argument("--today", action="store_true", help="Export today's sessions")
     p_export.add_argument("--all", action="store_true", help="Export all sessions")
     p_export.add_argument("--all-projects", action="store_true", help="Search all Claude project dirs, not just current")
+    p_export.add_argument("--min-msgs", type=int, default=2, help="Skip sessions with fewer than N user messages (default: 2)")
     p_export.add_argument("file", nargs="?", help="Specific session file")
     p_export.set_defaults(func=cmd_export)
 
